@@ -133,20 +133,38 @@ class LiberatorSimulator {
         this.trigger.rotation.z = 0.25;
         this.pistolGroup.add(this.trigger);
 
-        // --- Breech & Cocking ---
-        this.breechBlock = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.75, 0.55), metalMat);
-        this.breechBlock.position.set(-0.8, 0.35, 0);
-        this.pistolGroup.add(this.breechBlock);
+        // --- Breech & Cocking (Refined based on image copy 4.png) ---
+        const breechGroup = new THREE.Group();
+        // Main blocky part of the breech
+        const breechMain = new THREE.Mesh(
+            new THREE.BoxGeometry(0.3, 0.5, 0.5), 
+            metalMat
+        );
+        // Rounded rear cap
+        const breechCap = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 0.45, 0.45),
+            metalMat
+        );
+        breechCap.position.x = -0.15;
+        breechGroup.add(breechMain, breechCap);
+        breechGroup.position.set(-0.7, 0.4, 0);
+        this.pistolGroup.add(breechGroup);
+        this.breechBlock = breechGroup; // Keep reference for animation
         this.breechBlock.name = "breech";
 
+        // Rear Sight (Small notch on the frame/breech area)
+        const rearSight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.25), metalMat);
+        rearSight.position.set(-0.6, 0.6, 0);
+        this.pistolGroup.add(rearSight);
+
         this.cockingGroup = new THREE.Group();
-        const knobPoints = [];
-        for (let i = 0; i < 15; i++) { knobPoints.push(new THREE.Vector2(Math.sin(i * 0.22) * 0.07 + 0.17, (i - 7.5) * 0.06)); }
-        this.cockingGroup.add(new THREE.Mesh(new THREE.LatheGeometry(knobPoints, 32).rotateZ(Math.PI/2), metalMat));
-        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.35, 24).rotateZ(Math.PI/2), metalMat);
-        shaft.position.x = 0.45;
-        this.cockingGroup.add(shaft);
-        this.cockingGroup.position.set(-1.25, 0.35, 0);
+        // The pull handle (T-shape)
+        const handleStem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.8, 16).rotateZ(Math.PI/2), metalMat);
+        const handleTop = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.3, 8, 16).rotateX(Math.PI/2), metalMat);
+        handleTop.position.x = -0.4;
+        
+        this.cockingGroup.add(handleStem, handleTop);
+        this.cockingGroup.position.set(-1.1, 0.4, 0);
         this.pistolGroup.add(this.cockingGroup);
 
         // --- Muzzle Flash ---
