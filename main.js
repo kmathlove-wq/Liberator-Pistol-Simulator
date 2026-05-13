@@ -161,7 +161,7 @@ class LiberatorSimulator {
         this.breechBlock.name = "breech";
 
         this.cockingGroup = new THREE.Group();
-        // Thicker pull handle
+        // Thicker pull handle (Based on image copy 4.png)
         const handleStem = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16).rotateZ(Math.PI/2), metalMat);
         const handleTop = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.4, 16).rotateX(Math.PI/2), metalMat);
         handleTop.position.x = -0.3;
@@ -174,16 +174,6 @@ class LiberatorSimulator {
         const rearSight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.25), metalMat);
         rearSight.position.set(-0.6, 0.6, 0);
         this.pistolGroup.add(rearSight);
-
-        this.cockingGroup = new THREE.Group();
-        // The pull handle (T-shape)
-        const handleStem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.8, 16).rotateZ(Math.PI/2), metalMat);
-        const handleTop = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.3, 8, 16).rotateX(Math.PI/2), metalMat);
-        handleTop.position.x = -0.4;
-        
-        this.cockingGroup.add(handleStem, handleTop);
-        this.cockingGroup.position.set(-1.1, 0.4, 0);
-        this.pistolGroup.add(this.cockingGroup);
 
         // --- Muzzle Flash ---
         this.muzzleFlash = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 24), new THREE.MeshBasicMaterial({ color: 0xffdd00, transparent: true, opacity: 0 }));
