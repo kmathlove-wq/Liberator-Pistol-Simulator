@@ -65,16 +65,16 @@ class LiberatorSimulator {
         this.pistolGroup = new THREE.Group();
         this.scene.add(this.pistolGroup);
 
-        // --- Materials (Refined Silver Steel) ---
+        // --- Materials (Bright Silver Steel) ---
         const metalMat = new THREE.MeshPhysicalMaterial({ 
-            color: 0x999999, // Solid silver base
-            metalness: 0.8,  // Allow base color to show through
-            roughness: 0.25,
-            clearcoat: 0.5,
-            envMapIntensity: 1.5
+            color: 0xcccccc, // Lighter silver base
+            metalness: 0.6,  // More diffuse for better visibility
+            roughness: 0.2,
+            clearcoat: 0.3,
+            envMapIntensity: 1.2
         });
 
-        // --- Frame ---
+        // --- Frame (Updated with rear shoulder for image copy 4.png look) ---
         const frameShape = new THREE.Shape();
         frameShape.moveTo(-0.8, 0.55);
         frameShape.lineTo(0.55, 0.55);
@@ -85,7 +85,9 @@ class LiberatorSimulator {
         frameShape.lineTo(0.2, -1.55);
         frameShape.bezierCurveTo(0.2, -1.7, -0.6, -1.7, -0.7, -1.55);
         frameShape.lineTo(-0.5, -0.5);
-        frameShape.bezierCurveTo(-0.8, -0.3, -0.8, 0.25, -0.8, 0.55);
+        frameShape.bezierCurveTo(-0.8, -0.3, -1.0, 0.0, -1.0, 0.35); // Added shoulder curve
+        frameShape.lineTo(-1.0, 0.55);
+        frameShape.lineTo(-0.8, 0.55);
 
         const frame = new THREE.Mesh(
             new THREE.ExtrudeGeometry(frameShape, { depth: 0.45, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 12 }),
@@ -133,24 +135,40 @@ class LiberatorSimulator {
         this.trigger.rotation.z = 0.25;
         this.pistolGroup.add(this.trigger);
 
-        // --- Breech & Cocking (Refined based on image copy 4.png) ---
+        // --- Breech & Cocking (Refined for image copy 4.png) ---
         const breechGroup = new THREE.Group();
-        // Main blocky part of the breech
+        // Main blocky part of the breech (integrated look)
         const breechMain = new THREE.Mesh(
-            new THREE.BoxGeometry(0.3, 0.5, 0.5), 
+            new THREE.BoxGeometry(0.4, 0.4, 0.4), 
             metalMat
         );
-        // Rounded rear cap
+        // Rounded rear cap (Smooth transition)
         const breechCap = new THREE.Mesh(
-            new THREE.BoxGeometry(0.15, 0.45, 0.45),
+            new THREE.SphereGeometry(0.2, 32, 32),
             metalMat
         );
-        breechCap.position.x = -0.15;
-        breechGroup.add(breechMain, breechCap);
-        breechGroup.position.set(-0.7, 0.4, 0);
+        breechCap.scale.set(0.8, 1, 1);
+        breechCap.position.x = -0.2;
+        
+        // Top Detail (Rear Sight Integration)
+        const breechTop = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.3), metalMat);
+        breechTop.position.y = 0.25;
+
+        breechGroup.add(breechMain, breechCap, breechTop);
+        breechGroup.position.set(-0.8, 0.4, 0);
         this.pistolGroup.add(breechGroup);
-        this.breechBlock = breechGroup; // Keep reference for animation
+        this.breechBlock = breechGroup;
         this.breechBlock.name = "breech";
+
+        this.cockingGroup = new THREE.Group();
+        // Thicker pull handle
+        const handleStem = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16).rotateZ(Math.PI/2), metalMat);
+        const handleTop = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.4, 16).rotateX(Math.PI/2), metalMat);
+        handleTop.position.x = -0.3;
+        
+        this.cockingGroup.add(handleStem, handleTop);
+        this.cockingGroup.position.set(-1.3, 0.4, 0);
+        this.pistolGroup.add(this.cockingGroup);
 
         // Rear Sight (Small notch on the frame/breech area)
         const rearSight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.25), metalMat);
