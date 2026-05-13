@@ -65,13 +65,13 @@ class LiberatorSimulator {
         this.pistolGroup = new THREE.Group();
         this.scene.add(this.pistolGroup);
 
-        // --- Materials (Bright Polished Steel) ---
+        // --- Materials (Refined Silver Steel) ---
         const metalMat = new THREE.MeshPhysicalMaterial({ 
-            color: 0xeeeeee, // Very light grey/silver
-            metalness: 1.0, 
-            roughness: 0.15,
-            clearcoat: 0.8,
-            envMapIntensity: 2.5
+            color: 0x999999, // Solid silver base
+            metalness: 0.8,  // Allow base color to show through
+            roughness: 0.25,
+            clearcoat: 0.5,
+            envMapIntensity: 1.5
         });
 
         // --- Frame ---
@@ -97,7 +97,7 @@ class LiberatorSimulator {
         // --- Barrel ---
         const barrelGroup = new THREE.Group();
         barrelGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.6, 64).rotateZ(Math.PI/2), metalMat));
-        const bore = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.1, 32).rotateZ(Math.PI/2), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        const bore = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.1, 32).rotateZ(Math.PI/2), new THREE.MeshBasicMaterial({ color: 0x111111 }));
         bore.position.x = 0.76;
         barrelGroup.add(bore);
         barrelGroup.position.set(0.7, 0.35, 0);
@@ -105,18 +105,16 @@ class LiberatorSimulator {
 
         this.pistolGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.4, 64).rotateZ(Math.PI/2), metalMat).position.set(0.1, 0.35, 0));
 
-        // --- Front Sight Shroud (Foolproof primitive version) ---
+        // --- Front Sight Shroud (Cleaned up version) ---
         const shroudGroup = new THREE.Group();
-        // Muzzle Ring
-        const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 32).rotateX(Math.PI/2), metalMat);
-        // Sight Post
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.1), metalMat);
-        post.position.y = 0.35;
-        // Connecting Plate (The "shroud")
-        const plate = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.6, 0.3), metalMat);
-        plate.position.y = -0.2;
+        // Sight Post (Small and subtle)
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.15, 0.08), metalMat);
+        post.position.y = 0.25;
+        // Muzzle Shroud (More integrated)
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.2), metalMat);
+        plate.position.y = -0.1;
         
-        shroudGroup.add(ring, post, plate);
+        shroudGroup.add(post, plate);
         shroudGroup.position.set(1.45, 0.35, 0);
         this.pistolGroup.add(shroudGroup);
 
