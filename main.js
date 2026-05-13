@@ -35,6 +35,7 @@ class LiberatorSimulator {
         pmremGenerator.compileEquirectangularShader();
 
         const envScene = new THREE.Scene();
+        // Extremely bright, uniform studio environment
         const addLightBox = (x, y, z, w, h, color = 0xffffff) => {
             const box = new THREE.Mesh(
                 new THREE.PlaneGeometry(w, h),
@@ -45,18 +46,17 @@ class LiberatorSimulator {
             envScene.add(box);
         };
 
-        // Even brighter environment to ensure no deep blacks
-        addLightBox(10, 15, 10, 15, 15, 0xffffff);
-        addLightBox(-10, 10, -5, 15, 10, 0xffffff);
-        addLightBox(0, 20, 0, 10, 10, 0xffffff);
-        addLightBox(0, -10, 0, 20, 20, 0xcccccc); // Bright floor reflection
+        addLightBox(10, 15, 10, 20, 20);
+        addLightBox(-10, 10, -10, 20, 20);
+        addLightBox(0, 20, 0, 20, 20);
+        addLightBox(0, -10, 0, 20, 20);
 
         this.scene.environment = pmremGenerator.fromScene(envScene).texture;
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Significantly boosted
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Full ambient
         this.scene.add(ambientLight);
 
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
         keyLight.position.set(5, 10, 7);
         this.scene.add(keyLight);
     }
@@ -65,14 +65,13 @@ class LiberatorSimulator {
         this.pistolGroup = new THREE.Group();
         this.scene.add(this.pistolGroup);
 
-        // --- Materials (Bright Silver Steel) ---
+        // --- Materials (Bright Polished Steel) ---
         const metalMat = new THREE.MeshPhysicalMaterial({ 
-            color: 0xcccccc, // Lighter grey/silver
+            color: 0xeeeeee, // Very light grey/silver
             metalness: 1.0, 
-            roughness: 0.18, 
-            clearcoat: 0.5,
-            clearcoatRoughness: 0.1,
-            envMapIntensity: 2.0 // High intensity reflections
+            roughness: 0.15,
+            clearcoat: 0.8,
+            envMapIntensity: 2.5
         });
 
         // --- Frame ---
@@ -88,63 +87,38 @@ class LiberatorSimulator {
         frameShape.lineTo(-0.5, -0.5);
         frameShape.bezierCurveTo(-0.8, -0.3, -0.8, 0.25, -0.8, 0.55);
 
-        const extrudeSettings = { 
-            depth: 0.45, 
-            bevelEnabled: true, 
-            bevelThickness: 0.06, 
-            bevelSize: 0.06, 
-            bevelSegments: 12 
-        };
-        
-        const frame = new THREE.Mesh(new THREE.ExtrudeGeometry(frameShape, extrudeSettings), metalMat);
+        const frame = new THREE.Mesh(
+            new THREE.ExtrudeGeometry(frameShape, { depth: 0.45, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 12 }),
+            metalMat
+        );
         frame.position.z = -0.225;
         this.pistolGroup.add(frame);
 
         // --- Barrel ---
         const barrelGroup = new THREE.Group();
-        const outerBarrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.2, 0.2, 1.6, 64).rotateZ(Math.PI/2),
-            metalMat
-        );
-        const bore = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.16, 0.16, 0.15, 32).rotateZ(Math.PI/2),
-            new THREE.MeshBasicMaterial({ color: 0x111111 })
-        );
-        bore.position.x = 0.75;
-        barrelGroup.add(outerBarrel, bore);
+        barrelGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.6, 64).rotateZ(Math.PI/2), metalMat));
+        const bore = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.1, 32).rotateZ(Math.PI/2), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        bore.position.x = 0.76;
+        barrelGroup.add(bore);
         barrelGroup.position.set(0.7, 0.35, 0);
         this.pistolGroup.add(barrelGroup);
 
-        const collar = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.25, 0.25, 0.4, 64).rotateZ(Math.PI/2),
-            metalMat
-        );
-        collar.position.set(0.1, 0.35, 0);
-        this.pistolGroup.add(collar);
+        this.pistolGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.4, 64).rotateZ(Math.PI/2), metalMat).position.set(0.1, 0.35, 0));
 
-        // --- Front Sight Shroud (Simplified Clean Plate) ---
-        const shroudShape = new THREE.Shape();
-        shroudShape.moveTo(-0.15, 0.45);
-        shroudShape.lineTo(0.15, 0.45);
-        shroudShape.lineTo(0.15, -0.5);
-        shroudShape.bezierCurveTo(0.15, -0.9, -0.85, -0.9, -1.1, -0.2);
-        shroudShape.lineTo(-1.1, 0.05);
-        shroudShape.lineTo(-0.95, 0.05);
-        shroudShape.lineTo(-0.95, -0.2);
-        shroudShape.bezierCurveTo(-0.95, -0.75, -0.05, -0.75, -0.05, -0.5);
-        shroudShape.lineTo(-0.05, 0.45);
-
-        const shroudHole = new THREE.Path();
-        shroudHole.absarc(0, 0, 0.21, 0, Math.PI * 2, true);
-        shroudShape.holes.push(shroudHole);
-
-        const shroud = new THREE.Mesh(
-            new THREE.ExtrudeGeometry(shroudShape, { depth: 0.06, bevelEnabled: true, bevelSize: 0.01, bevelThickness: 0.01 }),
-            metalMat
-        );
-        shroud.position.set(1.45, 0.35, 0.03);
-        shroud.rotation.y = Math.PI / 2;
-        this.pistolGroup.add(shroud);
+        // --- Front Sight Shroud (Foolproof primitive version) ---
+        const shroudGroup = new THREE.Group();
+        // Muzzle Ring
+        const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 32).rotateX(Math.PI/2), metalMat);
+        // Sight Post
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.1), metalMat);
+        post.position.y = 0.35;
+        // Connecting Plate (The "shroud")
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.6, 0.3), metalMat);
+        plate.position.y = -0.2;
+        
+        shroudGroup.add(ring, post, plate);
+        shroudGroup.position.set(1.45, 0.35, 0);
+        this.pistolGroup.add(shroudGroup);
 
         // --- Trigger Guard ---
         const guardCurve = new THREE.CatmullRomCurve3([
@@ -153,47 +127,32 @@ class LiberatorSimulator {
             new THREE.Vector3(1.35, -0.2, 0),
             new THREE.Vector3(1.45, 0.1, 0)
         ]);
-        const triggerGuard = new THREE.Mesh(
-            new THREE.TubeGeometry(guardCurve, 32, 0.035, 12, false),
-            metalMat
-        );
-        this.pistolGroup.add(triggerGuard);
+        this.pistolGroup.add(new THREE.Mesh(new THREE.TubeGeometry(guardCurve, 32, 0.035, 12, false), metalMat));
 
         // --- Trigger ---
-        this.trigger = new THREE.Mesh(
-            new THREE.BoxGeometry(0.1, 0.35, 0.14),
-            metalMat
-        );
+        this.trigger = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.35, 0.14), metalMat);
         this.trigger.position.set(0.32, -0.15, 0);
         this.trigger.rotation.z = 0.25;
         this.pistolGroup.add(this.trigger);
 
         // --- Breech & Cocking ---
-        this.breechBlock = new THREE.Mesh(
-            new THREE.BoxGeometry(0.06, 0.75, 0.55),
-            metalMat
-        );
+        this.breechBlock = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.75, 0.55), metalMat);
         this.breechBlock.position.set(-0.8, 0.35, 0);
         this.pistolGroup.add(this.breechBlock);
         this.breechBlock.name = "breech";
 
         this.cockingGroup = new THREE.Group();
         const knobPoints = [];
-        for (let i = 0; i < 15; i++) {
-            knobPoints.push(new THREE.Vector2(Math.sin(i * 0.22) * 0.07 + 0.17, (i - 7.5) * 0.06));
-        }
-        const knobMain = new THREE.Mesh(new THREE.LatheGeometry(knobPoints, 32).rotateZ(Math.PI/2), metalMat);
+        for (let i = 0; i < 15; i++) { knobPoints.push(new THREE.Vector2(Math.sin(i * 0.22) * 0.07 + 0.17, (i - 7.5) * 0.06)); }
+        this.cockingGroup.add(new THREE.Mesh(new THREE.LatheGeometry(knobPoints, 32).rotateZ(Math.PI/2), metalMat));
         const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.35, 24).rotateZ(Math.PI/2), metalMat);
         shaft.position.x = 0.45;
-        this.cockingGroup.add(knobMain, shaft);
+        this.cockingGroup.add(shaft);
         this.cockingGroup.position.set(-1.25, 0.35, 0);
         this.pistolGroup.add(this.cockingGroup);
 
         // --- Muzzle Flash ---
-        this.muzzleFlash = new THREE.Mesh(
-            new THREE.SphereGeometry(0.5, 24, 24),
-            new THREE.MeshBasicMaterial({ color: 0xffdd00, transparent: true, opacity: 0 })
-        );
+        this.muzzleFlash = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 24), new THREE.MeshBasicMaterial({ color: 0xffdd00, transparent: true, opacity: 0 }));
         this.muzzleFlash.position.set(1.5, 0.35, 0);
         this.pistolGroup.add(this.muzzleFlash);
 
