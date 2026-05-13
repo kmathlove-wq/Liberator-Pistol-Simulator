@@ -42,50 +42,140 @@ class LiberatorSimulator {
         this.pistolGroup = new THREE.Group();
         this.scene.add(this.pistolGroup);
 
+        // Realistic Metal Material (Stamped Steel)
         const metalMat = new THREE.MeshStandardMaterial({ 
-            color: 0x888888, 
-            metalness: 0.8, 
-            roughness: 0.3 
+            color: 0x555555, 
+            metalness: 0.9, 
+            roughness: 0.5,
+            flatShading: false
         });
 
-        // Frame
-        const frameGeo = new THREE.BoxGeometry(1.2, 0.6, 0.4);
+        // Zinc Material for Cocking Knob
+        const zincMat = new THREE.MeshStandardMaterial({
+            color: 0xaaaaaa,
+            metalness: 0.6,
+            roughness: 0.6
+        });
+
+        // --- Frame (Main Body) ---
+        // Stamped steel frame with slightly rounded corners
+        const frameGeo = new THREE.BoxGeometry(1.4, 0.7, 0.45);
         const frame = new THREE.Mesh(frameGeo, metalMat);
+        frame.position.set(-0.1, 0.05, 0);
         this.pistolGroup.add(frame);
 
-        // Barrel
-        const barrelGeo = new THREE.CylinderGeometry(0.18, 0.18, 1.5, 32);
+        // --- Barrel ---
+        // Simple tube with a collar at the back
+        const barrelGeo = new THREE.CylinderGeometry(0.18, 0.18, 1.6, 32);
         barrelGeo.rotateZ(Math.PI / 2);
         const barrel = new THREE.Mesh(barrelGeo, metalMat);
-        barrel.position.set(0.6, 0.15, 0);
+        barrel.position.set(0.6, 0.18, 0);
         this.pistolGroup.add(barrel);
 
-        // Grip
-        const gripGeo = new THREE.BoxGeometry(0.5, 1.2, 0.38);
-        const grip = new THREE.Mesh(gripGeo, metalMat);
-        grip.position.set(-0.3, -0.8, 0);
-        grip.rotation.z = -0.2;
-        this.pistolGroup.add(grip);
+        // --- Grip ---
+        // Hollow-looking stamped grip
+        const gripGroup = new THREE.Group();
+        const gripSideGeo = new THREE.BoxGeometry(0.55, 1.3, 0.05);
+        
+        const leftSide = new THREE.Mesh(gripSideGeo, metalMat);
+        leftSide.position.set(0, 0, 0.2);
+        
+        const rightSide = new THREE.Mesh(gripSideGeo, metalMat);
+        rightSide.position.set(0, 0, -0.2);
+        
+        const frontPlate = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.3, 0.4), metalMat);
+        frontPlate.position.set(0.25, 0, 0);
 
-        // Breech Block
-        const breechGeo = new THREE.BoxGeometry(0.05, 0.6, 0.5);
+        gripGroup.add(leftSide, rightSide, frontPlate);
+        gripGroup.position.set(-0.35, -0.85, 0);
+        gripGroup.rotation.z = -0.15;
+        this.pistolGroup.add(gripGroup);
+
+        // Grip Floorplate (The sliding part)
+        const floorGeo = new THREE.BoxGeometry(0.65, 0.05, 0.5);
+        const floor = new THREE.Mesh(floorGeo, metalMat);
+        floor.position.set(-0.55, -1.5, 0);
+        this.pistolGroup.add(floor);
+
+        // --- Trigger & Guard ---
+        // Trigger Guard (Simplified wire-like strap)
+        const guardPath = new THREE.CurvePath();
+        // Just a simple box for the guard for now to keep it lightweight but looking right
+        const guardGeo = new THREE.BoxGeometry(0.6, 0.05, 0.1);
+        const guardBottom = new THREE.Mesh(guardGeo, metalMat);
+        guardBottom.position.set(0.2, -0.4, 0);
+        this.pistolGroup.add(guardBottom);
+
+        const guardFrontGeo = new THREE.BoxGeometry(0.05, 0.35, 0.1);
+        const guardFront = new THREE.Mesh(guardFrontGeo, metalMat);
+        guardFront.position.set(0.5, -0.2, 0);
+        this.pistolGroup.add(guardFront);
+
+        // Trigger
+        const triggerGeo = new THREE.BoxGeometry(0.1, 0.3, 0.1);
+        this.trigger = new THREE.Mesh(triggerGeo, metalMat);
+        this.trigger.position.set(0.1, -0.2, 0);
+        this.trigger.rotation.z = 0.2;
+        this.pistolGroup.add(this.trigger);
+
+        // --- Breech Block ---
+        // The vertical sliding plate
+        const breechGeo = new THREE.BoxGeometry(0.06, 0.7, 0.55);
         this.breechBlock = new THREE.Mesh(breechGeo, metalMat);
-        this.breechBlock.position.set(-0.62, 0.15, 0);
+        this.breechBlock.position.set(-0.7, 0.18, 0);
         this.pistolGroup.add(this.breechBlock);
         this.breechBlock.name = "breech";
 
-        // Cocking Knob
-        const knobGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.4, 16);
-        knobGeo.rotateZ(Math.PI / 2);
-        this.cockingKnob = new THREE.Mesh(knobGeo, metalMat);
-        this.cockingKnob.position.set(-0.9, 0.15, 0);
-        this.pistolGroup.add(this.cockingKnob);
+        // Rear Sights (Notched into breech block)
+        const sightGeo = new THREE.BoxGeometry(0.06, 0.1, 0.1);
+        const sightL = new THREE.Mesh(sightGeo, metalMat);
+        sightL.position.set(0, 0.35, 0.15);
+        const sightR = new THREE.Mesh(sightGeo, metalMat);
+        sightR.position.set(0, 0.35, -0.15);
+        this.breechBlock.add(sightL, sightR);
 
-        // Muzzle Flash (Hidden initially)
-        const flashGeo = new THREE.SphereGeometry(0.3, 8, 8);
+        // --- Cocking Knob ---
+        // Zinc die-cast knob with texture (simulated with geometry)
+        this.cockingGroup = new THREE.Group();
+        
+        const knobMainGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.3, 16);
+        knobMainGeo.rotateZ(Math.PI / 2);
+        const knobMain = new THREE.Mesh(knobMainGeo, zincMat);
+        
+        const knobBackGeo = new THREE.SphereGeometry(0.22, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+        knobBackGeo.rotateZ(-Math.PI / 2);
+        const knobBack = new THREE.Mesh(knobBackGeo, zincMat);
+        knobBack.position.set(-0.15, 0, 0);
+
+        // Firing Pin Shaft
+        const shaftGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.2, 16);
+        shaftGeo.rotateZ(Math.PI / 2);
+        const shaft = new THREE.Mesh(shaftGeo, metalMat);
+        shaft.position.set(0.4, 0, 0);
+
+        this.cockingGroup.add(knobMain, knobBack, shaft);
+        this.cockingGroup.position.set(-1.0, 0.18, 0);
+        this.pistolGroup.add(this.cockingGroup);
+
+        // --- Details (Rivets/Welds) ---
+        const rivetGeo = new THREE.SphereGeometry(0.03, 8, 8);
+        const addRivet = (x, y, z) => {
+            const r = new THREE.Mesh(rivetGeo, metalMat);
+            r.position.set(x, y, z);
+            this.pistolGroup.add(r);
+        };
+        addRivet(-0.1, 0.3, 0.23);
+        addRivet(-0.1, -0.2, 0.23);
+        addRivet(0.4, 0.3, 0.23);
+        addRivet(-0.1, 0.3, -0.23);
+        addRivet(-0.1, -0.2, -0.23);
+        addRivet(0.4, 0.3, -0.23);
+
+        // Muzzle Flash
+        const flashGeo = new THREE.SphereGeometry(0.4, 12, 12);
         const flashMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 });
         this.muzzleFlash = new THREE.Mesh(flashGeo, flashMat);
-        this.muzzleFlash.position.set(1.4, 0.15, 0);
+        this.muzzleFlash.position.set(1.4, 0.18, 0);
         this.pistolGroup.add(this.muzzleFlash);
 
         this.isBreechOpen = false;
@@ -121,9 +211,8 @@ class LiberatorSimulator {
     toggleBreech() {
         if (this.isFiring) return;
         this.isBreechOpen = !this.isBreechOpen;
-        const targetY = this.isBreechOpen ? 0.6 : 0.15;
+        const targetY = this.isBreechOpen ? 0.7 : 0.18;
         
-        // Simple animation using lerp in animate loop
         this.targetBreechY = targetY;
     }
 
@@ -131,31 +220,29 @@ class LiberatorSimulator {
         if (this.isBreechOpen || this.isFiring) return;
         this.isFiring = true;
 
-        // Firing sequence: Knob pull back -> snap forward -> flash
-        const timeline = [
-            { t: 0, knobX: -0.9 },
-            { t: 0.2, knobX: -1.2 }, // Pull back
-            { t: 0.25, knobX: -0.9, flash: 1 }, // Snap forward & Flash
-            { t: 0.4, flash: 0, done: true } // End
-        ];
-
         let start = performance.now();
         const run = (now) => {
             const elapsed = (now - start) / 1000;
             
             if (elapsed < 0.2) {
-                this.cockingKnob.position.x = -0.9 - (elapsed / 0.2) * 0.3;
+                // Pull back
+                this.cockingGroup.position.x = -1.0 - (elapsed / 0.2) * 0.3;
+                this.trigger.rotation.z = 0.2 + (elapsed / 0.2) * 0.3;
             } else if (elapsed < 0.25) {
-                this.cockingKnob.position.x = -1.2 + ((elapsed - 0.2) / 0.05) * 0.3;
+                // Snap forward & Flash
+                this.cockingGroup.position.x = -1.3 + ((elapsed - 0.2) / 0.05) * 0.3;
                 this.muzzleFlash.material.opacity = 1;
-                this.pistolGroup.position.x = -0.1; // Recoil
+                this.pistolGroup.position.x = -0.15; // Recoil
+                this.trigger.rotation.z = 0.5 - ((elapsed - 0.2) / 0.05) * 0.3;
             } else if (elapsed < 0.4) {
+                // Recovery
                 this.muzzleFlash.material.opacity = 1 - ((elapsed - 0.25) / 0.15);
-                this.pistolGroup.position.x = -0.1 + ((elapsed - 0.25) / 0.15) * 0.1;
+                this.pistolGroup.position.x = -0.15 + ((elapsed - 0.25) / 0.15) * 0.15;
             } else {
                 this.muzzleFlash.material.opacity = 0;
-                this.cockingKnob.position.x = -0.9;
+                this.cockingGroup.position.x = -1.0;
                 this.pistolGroup.position.x = 0;
+                this.trigger.rotation.z = 0.2;
                 this.isFiring = false;
                 return;
             }
