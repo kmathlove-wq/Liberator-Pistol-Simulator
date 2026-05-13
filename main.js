@@ -189,6 +189,30 @@ class LiberatorSimulator {
         this.isFiring = false;
     }
 
+    initInteractions() {
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+
+        window.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.handleRightClick(e);
+        });
+
+        document.getElementById('fire-btn').addEventListener('click', () => this.fire());
+    }
+
+    handleRightClick(event) {
+        this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const intersects = this.raycaster.intersectObjects(this.pistolGroup.children, true);
+
+        if (intersects.length > 0) {
+            this.toggleBreech();
+        }
+    }
+
     toggleBreech() {
         if (this.isFiring) return;
         this.isBreechOpen = !this.isBreechOpen;
