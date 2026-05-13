@@ -34,31 +34,31 @@ class LiberatorSimulator {
         const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
         pmremGenerator.compileEquirectangularShader();
 
-        // Create a higher-contrast environment for better reflections
         const envScene = new THREE.Scene();
-        
-        // High-intensity white panels for sharp highlights
-        const addLightBox = (x, y, z, w, h, intensity = 1) => {
+        // Softer, more natural studio lighting for "Steel" look
+        const addLightBox = (x, y, z, w, h, color = 0xffffff) => {
             const box = new THREE.Mesh(
                 new THREE.PlaneGeometry(w, h),
-                new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+                new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide })
             );
             box.position.set(x, y, z);
             box.lookAt(0, 0, 0);
             envScene.add(box);
         };
 
-        addLightBox(10, 10, 10, 5, 5);
-        addLightBox(-10, 5, -5, 8, 2);
-        addLightBox(0, 15, 0, 4, 10);
-        addLightBox(5, -5, 5, 3, 3);
+        // Multi-directional soft boxes to prevent deep blacks
+        addLightBox(10, 10, 10, 10, 10, 0xffffff);
+        addLightBox(-10, 5, -5, 10, 5, 0xddddff);
+        addLightBox(0, 15, 0, 8, 8, 0xffffff);
+        addLightBox(5, -10, 5, 5, 5, 0xaaaaaa);
+        addLightBox(-5, -5, 10, 5, 5, 0xcccccc);
 
         this.scene.environment = pmremGenerator.fromScene(envScene).texture;
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         this.scene.add(ambientLight);
 
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
         keyLight.position.set(5, 10, 7);
         this.scene.add(keyLight);
     }
@@ -67,17 +67,17 @@ class LiberatorSimulator {
         this.pistolGroup = new THREE.Group();
         this.scene.add(this.pistolGroup);
 
-        // --- Materials ---
+        // --- Materials (Real Steel Look) ---
         const metalMat = new THREE.MeshPhysicalMaterial({ 
-            color: 0xe0e0e0,
+            color: 0x999999, // Natural steel grey
             metalness: 1.0, 
-            roughness: 0.15, // Lowered for sharper reflections
-            clearcoat: 1.0,
-            clearcoatRoughness: 0.1,
-            envMapIntensity: 1.5
+            roughness: 0.25, // Balanced for "Steel" look
+            clearcoat: 0.3,
+            clearcoatRoughness: 0.2,
+            envMapIntensity: 1.2
         });
 
-        // --- Frame (Clean, Single Unit) ---
+        // --- Frame ---
         const frameShape = new THREE.Shape();
         frameShape.moveTo(-0.8, 0.55);
         frameShape.lineTo(0.55, 0.55);
@@ -124,17 +124,17 @@ class LiberatorSimulator {
         collar.position.set(0.1, 0.35, 0);
         this.pistolGroup.add(collar);
 
-        // --- Front Sight Shroud (Clean Pierced Geometry) ---
+        // --- Front Sight Shroud (Fixed Hole Subtraction) ---
         const shroudShape = new THREE.Shape();
-        shroudShape.moveTo(-0.1, 0.45);
-        shroudShape.lineTo(0.1, 0.45);
-        shroudShape.lineTo(0.1, -0.5);
-        shroudShape.bezierCurveTo(0.1, -0.9, -0.85, -0.9, -1.1, -0.2);
-        shroudShape.lineTo(-1.1, 0);
-        shroudShape.lineTo(-1.0, 0);
-        shroudShape.lineTo(-1.0, -0.2);
-        shroudShape.bezierCurveTo(-1.0, -0.75, -0.05, -0.75, -0.05, -0.5);
-        shroudShape.lineTo(-0.05, 0.45);
+        shroudShape.moveTo(0.45, -0.1);
+        shroudShape.lineTo(0.45, 0.1);
+        shroudShape.lineTo(-0.5, 0.1);
+        shroudShape.bezierCurveTo(-0.9, 0.1, -0.9, -0.85, -0.2, -1.1);
+        shroudShape.lineTo(0, -1.1);
+        shroudShape.lineTo(0, -1.0);
+        shroudShape.lineTo(-0.2, -1.0);
+        shroudShape.bezierCurveTo(-0.75, -1.0, -0.75, -0.05, -0.5, -0.05);
+        shroudShape.lineTo(0.45, -0.05);
 
         const shroudHole = new THREE.Path();
         shroudHole.absarc(0, 0, 0.21, 0, Math.PI * 2, true);
@@ -144,8 +144,10 @@ class LiberatorSimulator {
             new THREE.ExtrudeGeometry(shroudShape, { depth: 0.05, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02 }),
             metalMat
         );
+        // Correct position and rotation
         shroud.position.set(1.45, 0.35, 0.025);
         shroud.rotation.y = Math.PI / 2;
+        shroud.rotation.z = Math.PI / 2;
         this.pistolGroup.add(shroud);
 
         // --- Trigger Guard ---
