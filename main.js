@@ -178,64 +178,100 @@ class LiberatorSimulator {
         fSight.position.set(muzzleX - 0.28, barrelY + BR + 0.067, 0);
         this.pistolGroup.add(fSight);
 
-        // ═══ BREECH / TOP BLOCK (animates up to open) ════════════════
+        // ═══ BREECH BLOCK (rear section, full frame height, slides up) ════
         this.breechBlock = new THREE.Group();
+        this.breechBlock.name = "breech";
 
-        // Main breech body sits on top-rear of frame
-        const breechMain = S(new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.30, FD - 0.04), M));
-        breechMain.position.set(frameRear + 0.41, 0, 0);
-        this.breechBlock.add(breechMain);
+        const breechW = 0.76;
 
-        // Rear sight: small notch on top of breech
-        const rSightBase = S(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.095, FD * 0.52), M));
-        rSightBase.position.set(frameRear + 0.15, 0.20, 0);
-        this.breechBlock.add(rSightBase);
+        // Main body — same height/depth as frame, covers rear portion
+        // Slightly wider in Z (+0.012) so it fully covers the frame rear face, no z-fighting
+        const breechBox = S(new THREE.Mesh(
+            new THREE.BoxGeometry(breechW, FH, FD + 0.012), M
+        ));
+        this.breechBlock.add(breechBox);
 
-        // Rear sight notch cut (darker)
+        // Subtle top-edge cap (visual chamfer)
+        const breechCap = S(new THREE.Mesh(
+            new THREE.BoxGeometry(breechW - 0.06, 0.055, FD + 0.014), M
+        ));
+        breechCap.position.y = FH / 2 + 0.0275;
+        this.breechBlock.add(breechCap);
+
+        // Rear sight — U-notch: two upright posts at top-rear
+        const postH = 0.15, postW = 0.11, sightGap = 0.22;
+        for (const zOff of [-sightGap / 2, sightGap / 2]) {
+            const post = S(new THREE.Mesh(new THREE.BoxGeometry(0.10, postH, postW), M));
+            post.position.set(-breechW / 2 + 0.11, FH / 2 + postH / 2, zOff);
+            this.breechBlock.add(post);
+        }
+        // Dark notch between posts
         const rSightNotch = new THREE.Mesh(
-            new THREE.BoxGeometry(0.07, 0.055, FD * 0.25),
-            this._mat(0x787878, 0.7, 0.3)
+            new THREE.BoxGeometry(0.12, 0.09, sightGap - postW - 0.02),
+            this._mat(0x585c60, 0.85, 0.22)
         );
-        rSightNotch.position.set(frameRear + 0.15, 0.225, 0);
+        rSightNotch.position.set(-breechW / 2 + 0.11, FH / 2 + 0.045, 0);
         this.breechBlock.add(rSightNotch);
 
-        this.breechBlock.position.set(0, FH / 2 + 0.15, 0);
-        this.breechBlock.name = "breech";
+        // Screw/rivet detail on breech face (matches real FP-45 look)
+        for (const zOff of [-(FD / 2 + 0.007), (FD / 2 + 0.007)]) {
+            const boltGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.038, 8);
+            boltGeo.rotateX(Math.PI / 2);
+            const bolt = new THREE.Mesh(boltGeo, this._mat(0x909498, 0.35, 0.68));
+            bolt.position.set(-breechW / 2 + 0.14, FH / 2 - 0.15, zOff);
+            this.breechBlock.add(bolt);
+        }
+
+        // Position group at rear of frame; Y animates for open/close
+        this.breechBlock.position.set(frameRear + breechW / 2, 0, 0);
         this.pistolGroup.add(this.breechBlock);
 
-        this._breechClosedY = FH / 2 + 0.15;
-        this._breechOpenY   = FH / 2 + 0.68;
+        this._breechClosedY = 0;
+        this._breechOpenY   = FH * 0.97;
 
-        // ═══ COCKING ROD ═════════════════════════════════════════════
-        // Cylindrical rod that exits the rear-left of the frame
+        // ═══ COCKING PIECE (rectangular slider on near face of breech) ════
+        // FP-45 striker-setting slider — rectangular block with grip knob
         this.cockingGroup = new THREE.Group();
 
-        const rodLen = 1.05;
-        const cockRod = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.060, 0.060, rodLen, 16), Mbar
+        const armLen = 0.58, armH = 0.21, armD = 0.13;
+
+        // Horizontal sliding arm
+        const cockArm = S(new THREE.Mesh(new THREE.BoxGeometry(armLen, armH, armD), M));
+        cockArm.position.x = -armLen / 2 + 0.05;
+        this.cockingGroup.add(cockArm);
+
+        // Larger thumb knob at rear end
+        const knobW = 0.22, knobH = 0.30, knobD = 0.20;
+        const cockKnob = S(new THREE.Mesh(new THREE.BoxGeometry(knobW, knobH, knobD), M));
+        cockKnob.position.x = -armLen + 0.05;
+        this.cockingGroup.add(cockKnob);
+
+        // Knob serrations (vertical grip lines)
+        const serMat = this._mat(0x6c7074, 0.72, 0.40);
+        for (let i = -2; i <= 2; i++) {
+            const groove = new THREE.Mesh(
+                new THREE.BoxGeometry(0.008, knobH - 0.04, 0.003), serMat
+            );
+            groove.position.set(-armLen + 0.05 + i * 0.038, 0, knobD / 2 + 0.002);
+            this.cockingGroup.add(groove);
+        }
+
+        // Guide channel shadow (shows the rail the slider rides on)
+        const railShadow = new THREE.Mesh(
+            new THREE.BoxGeometry(armLen + 0.04, armH - 0.05, 0.006),
+            this._mat(0x7c8084, 0.60, 0.42)
         );
-        cockRod.rotation.z = Math.PI / 2;
-        cockRod.position.x = -rodLen / 2;
-        this.cockingGroup.add(cockRod);
+        railShadow.position.set(0.05 - armLen / 2, 0, -armD / 2 - 0.001);
+        this.cockingGroup.add(railShadow);
 
-        // Ball/knob at end of cocking rod
-        const cockBall = new THREE.Mesh(new THREE.SphereGeometry(0.115, 20, 16), Mbar);
-        cockBall.position.x = -rodLen;
-        this.cockingGroup.add(cockBall);
-
-        // Rod guide collar (where rod enters frame)
-        const rodCollar = S(new THREE.Mesh(
-            new THREE.CylinderGeometry(0.095, 0.095, 0.09, 16), M
-        ));
-        rodCollar.rotation.z = Math.PI / 2;
-        rodCollar.position.x = -0.045;
-        this.cockingGroup.add(rodCollar);
-
-        this.cockingGroup.position.set(frameRear, barrelY, 0);
+        // Positioned on the near (Z+) face of the breech block, mid-height
+        const cockBaseX = frameRear + breechW / 2;
+        const cockBaseZ = FD / 2 + armD / 2 + 0.006;
+        this.cockingGroup.position.set(cockBaseX, barrelY + 0.04, cockBaseZ);
         this.pistolGroup.add(this.cockingGroup);
 
-        this._cockingRestX = frameRear;
-        this._cockingPullX = frameRear - 0.48;
+        this._cockingRestX = cockBaseX;
+        this._cockingPullX = cockBaseX - 0.44;
 
         // ═══ TRIGGER GUARD ════════════════════════════════════════════
         // Large D-ring – one of the Liberator's most distinctive features
