@@ -178,75 +178,103 @@ class LiberatorSimulator {
         fSight.position.set(muzzleX - 0.28, barrelY + BR + 0.067, 0);
         this.pistolGroup.add(fSight);
 
-        // ═══ BREECH BLOCK (rear section, full frame height, slides up) ════
+        // ═══ BREECH BLOCK (pivots open 90° on Y-axis like real FP-45) ════
+        // PIVOT at (frameRear, 0, 0) = rear-left edge of frame
+        // All child meshes offset by breechW/2 in local X so they swing sideways
         this.breechBlock = new THREE.Group();
         this.breechBlock.name = "breech";
 
         const breechW = 0.76;
 
-        // Main body — same height/depth as frame, covers rear portion
-        // Slightly wider in Z (+0.012) so it fully covers the frame rear face, no z-fighting
+        // Main body: offset from pivot so it swings away from frame
         const breechBox = S(new THREE.Mesh(
             new THREE.BoxGeometry(breechW, FH, FD + 0.012), M
         ));
+        breechBox.position.x = breechW / 2;
         this.breechBlock.add(breechBox);
 
-        // Subtle top-edge cap (visual chamfer)
+        // Top edge cap
         const breechCap = S(new THREE.Mesh(
             new THREE.BoxGeometry(breechW - 0.06, 0.055, FD + 0.014), M
         ));
-        breechCap.position.y = FH / 2 + 0.0275;
+        breechCap.position.set(breechW / 2, FH / 2 + 0.0275, 0);
         this.breechBlock.add(breechCap);
 
-        // Rear sight — U-notch: two upright posts at top-rear
+        // Rear sight U-notch posts
         const postH = 0.15, postW = 0.11, sightGap = 0.22;
         for (const zOff of [-sightGap / 2, sightGap / 2]) {
             const post = S(new THREE.Mesh(new THREE.BoxGeometry(0.10, postH, postW), M));
-            post.position.set(-breechW / 2 + 0.11, FH / 2 + postH / 2, zOff);
+            post.position.set(0.11, FH / 2 + postH / 2, zOff);
             this.breechBlock.add(post);
         }
-        // Dark notch between posts
         const rSightNotch = new THREE.Mesh(
             new THREE.BoxGeometry(0.12, 0.09, sightGap - postW - 0.02),
             this._mat(0x585c60, 0.85, 0.22)
         );
-        rSightNotch.position.set(-breechW / 2 + 0.11, FH / 2 + 0.045, 0);
+        rSightNotch.position.set(0.11, FH / 2 + 0.045, 0);
         this.breechBlock.add(rSightNotch);
 
-        // Screw/rivet detail on breech face (matches real FP-45 look)
-        for (const zOff of [-(FD / 2 + 0.007), (FD / 2 + 0.007)]) {
+        // Side screw details
+        for (const zOff of [-(FD / 2 + 0.007), FD / 2 + 0.007]) {
             const boltGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.038, 8);
             boltGeo.rotateX(Math.PI / 2);
             const bolt = new THREE.Mesh(boltGeo, this._mat(0x909498, 0.35, 0.68));
-            bolt.position.set(-breechW / 2 + 0.14, FH / 2 - 0.15, zOff);
+            bolt.position.set(0.14, FH / 2 - 0.15, zOff);
             this.breechBlock.add(bolt);
         }
 
-        // Position group at rear of frame; Y animates for open/close
-        this.breechBlock.position.set(frameRear + breechW / 2, 0, 0);
+        // ── Chamber face disc on inner (front) face of breech ─────────
+        // When breech swings open this dark circle reveals the .45 ACP chamber
+        const chamberFace = new THREE.Mesh(
+            new THREE.CircleGeometry(BR + 0.030, 28),
+            new THREE.MeshBasicMaterial({ color: 0x040404, side: THREE.FrontSide })
+        );
+        chamberFace.rotation.y = Math.PI / 2;          // face local +X direction
+        chamberFace.position.set(breechW + 0.001, barrelY, 0);
+        this.breechBlock.add(chamberFace);
+
+        // Inner ring around chamber (brass coloured, like cartridge rim seat)
+        const chamberRing = new THREE.Mesh(
+            new THREE.RingGeometry(BR + 0.030, BR + 0.055, 28),
+            new THREE.MeshPhysicalMaterial({ color: 0x7c5c2a, metalness: 0.85, roughness: 0.25 })
+        );
+        chamberRing.rotation.y = Math.PI / 2;
+        chamberRing.position.set(breechW + 0.002, barrelY, 0);
+        this.breechBlock.add(chamberRing);
+
+        // Pivot at rear of frame; rotation.y animates for open/close
+        this.breechBlock.position.set(frameRear, 0, 0);
         this.pistolGroup.add(this.breechBlock);
 
-        this._breechClosedY = 0;
-        this._breechOpenY   = FH * 0.97;
+        this._breechClosedRot = 0;
+        this._breechOpenRot   = -Math.PI / 2;   // swings toward viewer (+Z)
 
-        // ═══ COCKING PIECE (rectangular slider on near face of breech) ════
-        // FP-45 striker-setting slider — rectangular block with grip knob
+        // ── Dark chamber interior visible inside frame when breech opens ─
+        // Short tube at barrel-height, rear of frame – gives depth illusion
+        const chamberHoleGeo = new THREE.CylinderGeometry(BR + 0.008, BR + 0.008, 0.14, 16);
+        chamberHoleGeo.rotateZ(Math.PI / 2);
+        const chamberHole = new THREE.Mesh(
+            chamberHoleGeo,
+            new THREE.MeshBasicMaterial({ color: 0x050505 })
+        );
+        chamberHole.position.set(frameRear + breechW - 0.07, barrelY, 0);
+        this.pistolGroup.add(chamberHole);
+
+        // ═══ COCKING PIECE — child of breechBlock, rotates with it ════
+        // Slider arm on the +Z face of the breech block
         this.cockingGroup = new THREE.Group();
 
         const armLen = 0.58, armH = 0.21, armD = 0.13;
 
-        // Horizontal sliding arm
         const cockArm = S(new THREE.Mesh(new THREE.BoxGeometry(armLen, armH, armD), M));
         cockArm.position.x = -armLen / 2 + 0.05;
         this.cockingGroup.add(cockArm);
 
-        // Larger thumb knob at rear end
         const knobW = 0.22, knobH = 0.30, knobD = 0.20;
         const cockKnob = S(new THREE.Mesh(new THREE.BoxGeometry(knobW, knobH, knobD), M));
         cockKnob.position.x = -armLen + 0.05;
         this.cockingGroup.add(cockKnob);
 
-        // Knob serrations (vertical grip lines)
         const serMat = this._mat(0x6c7074, 0.72, 0.40);
         for (let i = -2; i <= 2; i++) {
             const groove = new THREE.Mesh(
@@ -256,7 +284,6 @@ class LiberatorSimulator {
             this.cockingGroup.add(groove);
         }
 
-        // Guide channel shadow (shows the rail the slider rides on)
         const railShadow = new THREE.Mesh(
             new THREE.BoxGeometry(armLen + 0.04, armH - 0.05, 0.006),
             this._mat(0x7c8084, 0.60, 0.42)
@@ -264,14 +291,16 @@ class LiberatorSimulator {
         railShadow.position.set(0.05 - armLen / 2, 0, -armD / 2 - 0.001);
         this.cockingGroup.add(railShadow);
 
-        // Positioned on the near (Z+) face of the breech block, mid-height
-        const cockBaseX = frameRear + breechW / 2;
-        const cockBaseZ = FD / 2 + armD / 2 + 0.006;
-        this.cockingGroup.position.set(cockBaseX, barrelY + 0.04, cockBaseZ);
-        this.pistolGroup.add(this.cockingGroup);
+        // Local position inside breechBlock group
+        // (breechBlock pivot is at frameRear, so local X = breechW/2 centres on breech)
+        const localCockX = breechW / 2;
+        const localCockZ = (FD + 0.012) / 2 + armD / 2 + 0.004;
+        this.cockingGroup.position.set(localCockX, barrelY + 0.04, localCockZ);
+        this.breechBlock.add(this.cockingGroup);   // ← child of breech block
 
-        this._cockingRestX = cockBaseX;
-        this._cockingPullX = cockBaseX - 0.44;
+        // Local rest/pull positions (X axis aligns with world X when breech closed)
+        this._cockingRestX = localCockX;
+        this._cockingPullX = localCockX - 0.44;
 
         // ═══ TRIGGER GUARD ════════════════════════════════════════════
         // Large D-ring – one of the Liberator's most distinctive features
@@ -404,7 +433,7 @@ class LiberatorSimulator {
     toggleBreech() {
         if (this.isFiring) return;
         this.isBreechOpen = !this.isBreechOpen;
-        this._targetBreechY = this.isBreechOpen ? this._breechOpenY : this._breechClosedY;
+        this._targetBreechRot = this.isBreechOpen ? this._breechOpenRot : this._breechClosedRot;
     }
 
     fire() {
@@ -464,14 +493,14 @@ class LiberatorSimulator {
         requestAnimationFrame(() => this.animate());
         this.controls.update();
 
-        // Smooth breech open/close animation
-        if (this._targetBreechY !== undefined) {
-            const cur = this.breechBlock.position.y;
-            const tgt = this._targetBreechY;
-            if (Math.abs(tgt - cur) > 0.0008) {
-                this.breechBlock.position.y += (tgt - cur) * 0.18;
+        // Smooth breech rotation (Y-axis pivot, like real FP-45 breech swing)
+        if (this._targetBreechRot !== undefined) {
+            const cur = this.breechBlock.rotation.y;
+            const tgt = this._targetBreechRot;
+            if (Math.abs(tgt - cur) > 0.0005) {
+                this.breechBlock.rotation.y += (tgt - cur) * 0.14;
             } else {
-                this.breechBlock.position.y = tgt;
+                this.breechBlock.rotation.y = tgt;
             }
         }
 
