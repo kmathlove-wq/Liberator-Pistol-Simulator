@@ -35,7 +35,6 @@ class LiberatorSimulator {
     }
 
     initEnvironment() {
-        // Studio PMREM environment for accurate metal reflections
         const pmrem = new THREE.PMREMGenerator(this.renderer);
         pmrem.compileEquirectangularShader();
         const envScene = new THREE.Scene();
@@ -48,14 +47,13 @@ class LiberatorSimulator {
             m.lookAt(0, 0, 0);
             envScene.add(m);
         };
-        addPanel( 15,  25,  15, 35, 35, 0xffffff);   // key panel
-        addPanel(-18,  12,   8, 28, 28, 0xd8e0ff);   // cool fill
-        addPanel(  0, -18,   0, 28, 28, 0x707070);   // floor bounce
-        addPanel( -3,   5, -18, 28, 28, 0xfff0dc);   // warm rim
-        addPanel(  0,  18, -10, 22, 22, 0xeeeeee);   // top back
+        addPanel( 15,  25,  15, 35, 35, 0xffffff);
+        addPanel(-18,  12,   8, 28, 28, 0xd8e0ff);
+        addPanel(  0, -18,   0, 28, 28, 0x707070);
+        addPanel( -3,   5, -18, 28, 28, 0xfff0dc);
+        addPanel(  0,  18, -10, 22, 22, 0xeeeeee);
         this.scene.environment = pmrem.fromScene(envScene).texture;
 
-        // Three-point lighting with shadows
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.42));
 
         const key = new THREE.DirectionalLight(0xfff6e8, 1.75);
@@ -79,7 +77,6 @@ class LiberatorSimulator {
         this.scene.add(rim);
     }
 
-    // ── Material helpers ─────────────────────────────────────────────────────
     _mat(col = 0xa8b0b8, rough = 0.44, metal = 0.62) {
         return new THREE.MeshPhysicalMaterial({
             color: col,
@@ -95,39 +92,33 @@ class LiberatorSimulator {
         this.pistolGroup = new THREE.Group();
         this.scene.add(this.pistolGroup);
 
-        const M    = this._mat(0xa8b0b8, 0.44, 0.60);   // main frame steel
-        const Mbar = this._mat(0xb0b8c0, 0.28, 0.72);   // barrel (slightly shinier)
+        const M    = this._mat(0xa8b0b8, 0.44, 0.60);
+        const Mbar = this._mat(0xb0b8c0, 0.28, 0.72);
         const dark = new THREE.MeshBasicMaterial({ color: 0x0c0c0c });
         const S    = (m) => this._s(m);
 
-        // ═══ PROPORTIONS (1 unit ≈ 1 inch, matching real FP-45) ═══
-        //   Real gun: 5.55" long × 4.5" tall × 1.0" wide
-        const FW = 2.10, FH = 0.84, FD = 0.52;   // Frame housing
-        const GW = 0.90, GH = 1.72, GD = 0.50;   // Grip
-        const BL = 1.78, BR = 0.128;              // Barrel extra length / radius
-        const barrelY = 0.16;                      // barrel axis above frame centre
+        // ═══ PROPORTIONS (1 unit ≈ 1 inch) ═══
+        const FW = 2.10, FH = 0.84, FD = 0.52;
+        const GW = 0.90, GH = 1.72, GD = 0.50;
+        const BL = 1.78, BR = 0.128;
+        const barrelY = 0.16;
 
-        const frameFront = FW / 2;                 //  1.05
-        const frameRear  = -FW / 2;               // -1.05
-        const muzzleX    = frameFront + BL;        //  2.83
+        const frameFront = FW / 2;    //  1.05
+        const frameRear  = -FW / 2;  // -1.05
 
-        // Grip hangs below, offset to rear
-        const gripCX = frameRear + GW / 2 + 0.10; // -0.50
-        const gripCY = -(FH / 2 + GH / 2);        // -1.28
+        const gripCX = frameRear + GW / 2 + 0.10;
+        const gripCY = -(FH / 2 + GH / 2);
 
         // ═══ MAIN FRAME HOUSING ══════════════════════════════════════
-        // Flat stamped-zinc rectangular box – the signature Liberator look
         const frameMesh = S(new THREE.Mesh(new THREE.BoxGeometry(FW, FH, FD), M));
         this.pistolGroup.add(frameMesh);
 
-        // Slightly chamfered top-front edge (visual depth)
         const topFrontBevel = S(new THREE.Mesh(
             new THREE.BoxGeometry(0.18, 0.10, FD + 0.02), M
         ));
         topFrontBevel.position.set(frameFront - 0.09, FH / 2 - 0.05, 0);
         this.pistolGroup.add(topFrontBevel);
 
-        // Raised channel on top of frame where barrel sits inside
         const barrelChannel = S(new THREE.Mesh(
             new THREE.BoxGeometry(FW * 0.62, 0.11, FD * 0.58), M
         ));
@@ -139,12 +130,10 @@ class LiberatorSimulator {
         gripMesh.position.set(gripCX, gripCY, 0);
         this.pistolGroup.add(gripMesh);
 
-        // Base plate (slightly wider, flat bottom)
         const basePlate = S(new THREE.Mesh(new THREE.BoxGeometry(GW + 0.06, 0.07, GD + 0.05), M));
         basePlate.position.set(gripCX, gripCY - GH / 2 - 0.035, 0);
         this.pistolGroup.add(basePlate);
 
-        // Grip panel horizontal seam line (both faces)
         for (const z of [GD / 2 + 0.002, -(GD / 2 + 0.002)]) {
             const seam = new THREE.Mesh(
                 new THREE.BoxGeometry(GW - 0.12, 0.014, 0.004),
@@ -154,46 +143,120 @@ class LiberatorSimulator {
             this.pistolGroup.add(seam);
         }
 
-        // ═══ BARREL ══════════════════════════════════════════════════
+        // ═══ BARREL SOCKET on frame front face ════════════════════════
+        // Visible as a dark circle on the frame when the barrel is open
+        const socketFace = new THREE.Mesh(
+            new THREE.CircleGeometry(BR + 0.046, 24),
+            new THREE.MeshBasicMaterial({ color: 0x040404 })
+        );
+        socketFace.rotation.y = Math.PI / 2;   // faces +X (toward viewer looking from right)
+        socketFace.position.set(frameFront + 0.001, barrelY, 0);
+        this.pistolGroup.add(socketFace);
+
+        const socketRing = S(new THREE.Mesh(
+            new THREE.TorusGeometry(BR + 0.046, 0.022, 8, 24), M
+        ));
+        socketRing.rotation.y = Math.PI / 2;
+        socketRing.position.set(frameFront, barrelY, 0);
+        this.pistolGroup.add(socketRing);
+
+        // ═══ BARREL GROUP ════════════════════════════════════════════
+        // Real FP-45: barrel rotates 90° to unlock (bayonet mount), slides forward,
+        // exposing the chamber at the REAR of the barrel for loading.
+        // Simulation: pivot at frame-front, muzzle swings DOWN on Z-axis.
+        // When open, the chamber face at the pivot faces UPWARD — clearly visible.
+        this.barrelGroup = new THREE.Group();
+        this.barrelGroup.position.set(frameFront, barrelY, 0);  // pivot = barrel-frame junction
+        this.pistolGroup.add(this.barrelGroup);
+
+        // Barrel cylinder — extends forward from pivot
         const barrelMesh = S(new THREE.Mesh(new THREE.CylinderGeometry(BR, BR, BL, 32), Mbar));
         barrelMesh.rotation.z = Math.PI / 2;
-        barrelMesh.position.set(frameFront + BL / 2, barrelY, 0);
-        this.pistolGroup.add(barrelMesh);
+        barrelMesh.position.x = BL / 2;
+        this.barrelGroup.add(barrelMesh);
 
-        // Barrel exit ring (junction between frame and barrel)
+        // Collar ring at frame-barrel junction
         const exitRing = S(new THREE.Mesh(new THREE.CylinderGeometry(BR + 0.045, BR + 0.045, 0.10, 24), M));
         exitRing.rotation.z = Math.PI / 2;
-        exitRing.position.set(frameFront + 0.05, barrelY, 0);
-        this.pistolGroup.add(exitRing);
+        exitRing.position.x = 0.05;
+        this.barrelGroup.add(exitRing);
 
-        // Muzzle bore (dark circle at muzzle face)
+        // Muzzle bore (dark circle at muzzle end)
         const bore = new THREE.Mesh(new THREE.CircleGeometry(BR * 0.70, 28), dark);
         bore.rotation.y = Math.PI / 2;
-        bore.position.set(muzzleX + 0.001, barrelY, 0);
-        this.pistolGroup.add(bore);
+        bore.position.x = BL + 0.001;
+        this.barrelGroup.add(bore);
 
-        // ═══ FRONT SIGHT ═════════════════════════════════════════════
-        // Small blade on top of barrel, near muzzle
+        // ── Chamber face at REAR of barrel (at pivot) ────────────────
+        // Faces local -X (into the frame when closed).
+        // When barrel opens (rotation.z = -π/2), local -X → world +Y → faces UPWARD.
+        const chamberFace = new THREE.Mesh(
+            new THREE.CircleGeometry(BR * 0.82, 28),
+            new THREE.MeshBasicMaterial({ color: 0x020202 })
+        );
+        chamberFace.rotation.y = -Math.PI / 2;
+        chamberFace.position.x = -0.001;
+        this.barrelGroup.add(chamberFace);
+
+        // Brass cartridge rim seat ring around chamber
+        const chamberRing = new THREE.Mesh(
+            new THREE.RingGeometry(BR * 0.82, BR + 0.046, 28),
+            new THREE.MeshPhysicalMaterial({ color: 0x7c5c2a, metalness: 0.85, roughness: 0.25 })
+        );
+        chamberRing.rotation.y = -Math.PI / 2;
+        chamberRing.position.x = -0.002;
+        this.barrelGroup.add(chamberRing);
+
+        // Short dark inner tube — gives depth impression when looking into chamber
+        const innerGeo = new THREE.CylinderGeometry(BR * 0.78, BR * 0.78, 0.20, 20, 1, true);
+        innerGeo.rotateZ(Math.PI / 2);
+        const chamberInner = new THREE.Mesh(
+            innerGeo,
+            new THREE.MeshBasicMaterial({ color: 0x010101, side: THREE.BackSide })
+        );
+        chamberInner.position.x = 0.10;
+        this.barrelGroup.add(chamberInner);
+
+        // Front sight (near muzzle, on top)
         const fSight = S(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.13, 0.055), M));
-        fSight.position.set(muzzleX - 0.28, barrelY + BR + 0.067, 0);
-        this.pistolGroup.add(fSight);
+        fSight.position.set(BL - 0.28, BR + 0.067, 0);
+        this.barrelGroup.add(fSight);
 
-        // ═══ BREECH BLOCK (pivots open 90° on Y-axis like real FP-45) ════
-        // PIVOT at (frameRear, 0, 0) = rear-left edge of frame
-        // All child meshes offset by breechW/2 in local X so they swing sideways
+        // Muzzle flash (child of barrelGroup — moves with barrel)
+        this.muzzleFlash = new THREE.Mesh(
+            new THREE.SphereGeometry(0.35, 14, 14),
+            new THREE.MeshBasicMaterial({ color: 0xffcc22, transparent: true, opacity: 0 })
+        );
+        this.muzzleFlash.position.set(BL + 0.08, 0, 0);
+        this.barrelGroup.add(this.muzzleFlash);
+
+        this.muzzleCore = new THREE.Mesh(
+            new THREE.SphereGeometry(0.16, 10, 10),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })
+        );
+        this.muzzleCore.position.set(BL + 0.02, 0, 0);
+        this.barrelGroup.add(this.muzzleCore);
+
+        // Barrel animation states
+        this.isBarrelOpen      = false;
+        this._barrelClosedRot  = 0;
+        this._barrelOpenRot    = -Math.PI / 2;   // muzzle swings down, chamber faces up
+        this._targetBarrelRot  = 0;
+
+        // ═══ BREECH BLOCK (fixed rear housing) ═══════════════════════
+        // Contains the firing mechanism and cocking assembly.
+        // Not animated — loading is done via the barrel.
         this.breechBlock = new THREE.Group();
         this.breechBlock.name = "breech";
 
         const breechW = 0.76;
 
-        // Main body: offset from pivot so it swings away from frame
         const breechBox = S(new THREE.Mesh(
             new THREE.BoxGeometry(breechW, FH, FD + 0.012), M
         ));
         breechBox.position.x = breechW / 2;
         this.breechBlock.add(breechBox);
 
-        // Top edge cap
         const breechCap = S(new THREE.Mesh(
             new THREE.BoxGeometry(breechW - 0.06, 0.055, FD + 0.014), M
         ));
@@ -214,7 +277,6 @@ class LiberatorSimulator {
         rSightNotch.position.set(0.11, FH / 2 + 0.045, 0);
         this.breechBlock.add(rSightNotch);
 
-        // Side screw details
         for (const zOff of [-(FD / 2 + 0.007), FD / 2 + 0.007]) {
             const boltGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.038, 8);
             boltGeo.rotateX(Math.PI / 2);
@@ -223,45 +285,10 @@ class LiberatorSimulator {
             this.breechBlock.add(bolt);
         }
 
-        // ── Chamber face disc on inner (front) face of breech ─────────
-        // When breech swings open this dark circle reveals the .45 ACP chamber
-        const chamberFace = new THREE.Mesh(
-            new THREE.CircleGeometry(BR + 0.030, 28),
-            new THREE.MeshBasicMaterial({ color: 0x040404, side: THREE.FrontSide })
-        );
-        chamberFace.rotation.y = Math.PI / 2;          // face local +X direction
-        chamberFace.position.set(breechW + 0.001, barrelY, 0);
-        this.breechBlock.add(chamberFace);
-
-        // Inner ring around chamber (brass coloured, like cartridge rim seat)
-        const chamberRing = new THREE.Mesh(
-            new THREE.RingGeometry(BR + 0.030, BR + 0.055, 28),
-            new THREE.MeshPhysicalMaterial({ color: 0x7c5c2a, metalness: 0.85, roughness: 0.25 })
-        );
-        chamberRing.rotation.y = Math.PI / 2;
-        chamberRing.position.set(breechW + 0.002, barrelY, 0);
-        this.breechBlock.add(chamberRing);
-
-        // Pivot at rear of frame; rotation.y animates for open/close
         this.breechBlock.position.set(frameRear, 0, 0);
         this.pistolGroup.add(this.breechBlock);
 
-        this._breechClosedRot = 0;
-        this._breechOpenRot   = -Math.PI / 2;   // swings toward viewer (+Z)
-
-        // ── Dark chamber interior visible inside frame when breech opens ─
-        // Short tube at barrel-height, rear of frame – gives depth illusion
-        const chamberHoleGeo = new THREE.CylinderGeometry(BR + 0.008, BR + 0.008, 0.14, 16);
-        chamberHoleGeo.rotateZ(Math.PI / 2);
-        const chamberHole = new THREE.Mesh(
-            chamberHoleGeo,
-            new THREE.MeshBasicMaterial({ color: 0x050505 })
-        );
-        chamberHole.position.set(frameRear + breechW - 0.07, barrelY, 0);
-        this.pistolGroup.add(chamberHole);
-
-        // ═══ COCKING PIECE — child of breechBlock, rotates with it ════
-        // Slider arm on the +Z face of the breech block
+        // ═══ COCKING PIECE — child of breechBlock, slides in X ════════
         this.cockingGroup = new THREE.Group();
 
         const armLen = 0.58, armH = 0.21, armD = 0.13;
@@ -291,24 +318,19 @@ class LiberatorSimulator {
         railShadow.position.set(0.05 - armLen / 2, 0, -armD / 2 - 0.001);
         this.cockingGroup.add(railShadow);
 
-        // Local position inside breechBlock group
-        // (breechBlock pivot is at frameRear, so local X = breechW/2 centres on breech)
         const localCockX = breechW / 2;
         const localCockZ = (FD + 0.012) / 2 + armD / 2 + 0.004;
         this.cockingGroup.position.set(localCockX, barrelY + 0.04, localCockZ);
-        this.breechBlock.add(this.cockingGroup);   // ← child of breech block
+        this.breechBlock.add(this.cockingGroup);
 
-        // Local rest/pull positions (X axis aligns with world X when breech closed)
         this._cockingRestX = localCockX;
         this._cockingPullX = localCockX - 0.44;
 
         // ═══ TRIGGER GUARD ════════════════════════════════════════════
-        // Large D-ring – one of the Liberator's most distinctive features
-        // Runs from grip-front/frame-bottom, arcs down, and back up to barrel
-        const tgStartX = gripCX + GW / 2 + 0.02;   // front edge of grip
-        const tgStartY = -(FH / 2);
-        const tgEndX   = frameFront - 0.02;
-        const tgEndY   = barrelY - 0.08;
+        const tgStartX  = gripCX + GW / 2 + 0.02;
+        const tgStartY  = -(FH / 2);
+        const tgEndX    = frameFront - 0.02;
+        const tgEndY    = barrelY - 0.08;
         const tgBottomY = tgStartY - 0.44;
 
         const tgCurve = new THREE.CatmullRomCurve3([
@@ -332,7 +354,6 @@ class LiberatorSimulator {
         this.pistolGroup.add(this.trigger);
 
         // ═══ FRAME SURFACE DETAILS ════════════════════════════════════
-        // Two ejector/storage holes on each side face
         for (const zSide of [-1, 1]) {
             const zPos = (FD / 2 + 0.003) * zSide;
             const faceDir = zSide > 0 ? Math.PI / 2 : -Math.PI / 2;
@@ -340,7 +361,6 @@ class LiberatorSimulator {
                 const hx = frameRear + 0.38 + i * 0.46;
                 const hy = barrelY - 0.12;
 
-                // Hole outer ring (raised flange look)
                 const ring = new THREE.Mesh(
                     new THREE.TorusGeometry(0.087, 0.013, 8, 22), M
                 );
@@ -348,14 +368,12 @@ class LiberatorSimulator {
                 ring.position.set(hx, hy, zPos);
                 this.pistolGroup.add(ring);
 
-                // Dark hole
                 const face = new THREE.Mesh(new THREE.CircleGeometry(0.074, 24), dark);
                 face.rotation.y = faceDir;
                 face.position.set(hx, hy, zPos * 1.015);
                 this.pistolGroup.add(face);
             }
 
-            // Screw heads on frame corners (decorative detail)
             const screwPositions = [
                 [frameRear  + 0.30,  0.24],
                 [frameFront - 0.30,  0.24],
@@ -372,7 +390,6 @@ class LiberatorSimulator {
                 this.pistolGroup.add(screw);
             }
 
-            // Screw slot line (visual detail)
             for (const [sx, sy] of screwPositions) {
                 const slot = new THREE.Mesh(
                     new THREE.BoxGeometry(0.002, 0.058, 0.008),
@@ -383,7 +400,6 @@ class LiberatorSimulator {
             }
         }
 
-        // Barrel channel side ridges (slight raised lips on frame sides)
         for (const zSide of [-1, 1]) {
             const ridge = S(new THREE.Mesh(
                 new THREE.BoxGeometry(FW * 0.65, 0.06, 0.018), M
@@ -392,23 +408,6 @@ class LiberatorSimulator {
             this.pistolGroup.add(ridge);
         }
 
-        // ═══ MUZZLE FLASH ════════════════════════════════════════════
-        this.muzzleFlash = new THREE.Mesh(
-            new THREE.SphereGeometry(0.35, 14, 14),
-            new THREE.MeshBasicMaterial({ color: 0xffcc22, transparent: true, opacity: 0 })
-        );
-        this.muzzleFlash.position.set(muzzleX + 0.08, barrelY, 0);
-        this.pistolGroup.add(this.muzzleFlash);
-
-        // Add muzzle flash inner glow (bright core)
-        this.muzzleCore = new THREE.Mesh(
-            new THREE.SphereGeometry(0.16, 10, 10),
-            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })
-        );
-        this.muzzleCore.position.set(muzzleX + 0.02, barrelY, 0);
-        this.pistolGroup.add(this.muzzleCore);
-
-        this.isBreechOpen = false;
         this.isFiring = false;
     }
 
@@ -427,17 +426,17 @@ class LiberatorSimulator {
         this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const hits = this.raycaster.intersectObjects(this.pistolGroup.children, true);
-        if (hits.length > 0) this.toggleBreech();
+        if (hits.length > 0) this.toggleBarrel();
     }
 
-    toggleBreech() {
+    toggleBarrel() {
         if (this.isFiring) return;
-        this.isBreechOpen = !this.isBreechOpen;
-        this._targetBreechRot = this.isBreechOpen ? this._breechOpenRot : this._breechClosedRot;
+        this.isBarrelOpen = !this.isBarrelOpen;
+        this._targetBarrelRot = this.isBarrelOpen ? this._barrelOpenRot : this._barrelClosedRot;
     }
 
     fire() {
-        if (this.isBreechOpen || this.isFiring) return;
+        if (this.isBarrelOpen || this.isFiring) return;
         this.isFiring = true;
         const t0 = performance.now();
         const restX = this._cockingRestX;
@@ -447,13 +446,11 @@ class LiberatorSimulator {
             const t = (now - t0) / 1000;
 
             if (t < 0.20) {
-                // Striker pulled back
                 const p = t / 0.20;
                 this.cockingGroup.position.x = restX + (pullX - restX) * p;
                 this.trigger.rotation.z = 0.22 + p * 0.48;
 
             } else if (t < 0.26) {
-                // Fire: striker snaps forward, muzzle flash
                 const p = (t - 0.20) / 0.06;
                 this.cockingGroup.position.x = pullX + (restX - pullX) * p;
                 this.muzzleFlash.material.opacity = 1 - p * 0.3;
@@ -462,14 +459,12 @@ class LiberatorSimulator {
                 this.trigger.rotation.z = 0.22 + (1 - p) * 0.48;
 
             } else if (t < 0.48) {
-                // Muzzle flash fades, recoil recovery
                 const p = (t - 0.26) / 0.22;
                 this.muzzleFlash.material.opacity = Math.max(0, 0.7 - p);
                 this.muzzleCore.material.opacity = Math.max(0, 1 - p * 3.5);
                 this.pistolGroup.position.x = -0.30 * Math.max(0, 1 - p * 3);
 
             } else {
-                // Reset
                 this.muzzleFlash.material.opacity = 0;
                 this.muzzleCore.material.opacity = 0;
                 this.pistolGroup.position.x = 0;
@@ -493,14 +488,16 @@ class LiberatorSimulator {
         requestAnimationFrame(() => this.animate());
         this.controls.update();
 
-        // Smooth breech rotation (Y-axis pivot, like real FP-45 breech swing)
-        if (this._targetBreechRot !== undefined) {
-            const cur = this.breechBlock.rotation.y;
-            const tgt = this._targetBreechRot;
+        // Smooth barrel break-open animation
+        // Pivot at frame-front: muzzle swings down (rotation.z → -π/2),
+        // chamber face at pivot rotates to face upward — clearly visible from above.
+        if (this._targetBarrelRot !== undefined) {
+            const cur = this.barrelGroup.rotation.z;
+            const tgt = this._targetBarrelRot;
             if (Math.abs(tgt - cur) > 0.0005) {
-                this.breechBlock.rotation.y += (tgt - cur) * 0.14;
+                this.barrelGroup.rotation.z += (tgt - cur) * 0.14;
             } else {
-                this.breechBlock.rotation.y = tgt;
+                this.barrelGroup.rotation.z = tgt;
             }
         }
 
